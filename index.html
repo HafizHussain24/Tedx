@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <!-- SEO & Social Meta Tags -->
+  <title>TEDxFrontier 2026 | The Architecture of Unknown Futures</title>
+  <meta name="description" content="TEDxFrontier 2026 brings together leading neural researchers, synthetic biologists, and creative pioneers exploring the synthetic threshold where human imagination meets artificial creation." />
+  <meta name="keywords" content="TEDx, TEDxFrontier, keynote speakers, AI, synthetic biology, technology conference, WebGL shader" />
+  <meta property="og:title" content="TEDxFrontier 2026 | The Architecture of Unknown Futures" />
+  <meta property="og:description" content="Ideas worth spreading. Annual conference exploring intelligence, art, and the human frontier." />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="theme-color" content="#050507" />
+
+  <!-- Preconnect to Fonts and CDNs -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="/src/styles/main.css" />
+</head>
+<body>
+
+  <!-- Fullscreen WebGL2 Shader Canvas Container -->
+  <div class="hero-canvas-container" id="canvas-container" aria-hidden="true">
+    <canvas id="hero-canvas"></canvas>
+    <div class="hero-vignette"></div>
+  </div>
+
+  <!-- Primary Foreground UI Overlay -->
+  <div class="app-container">
+
+    <!-- Top Navigation -->
+    <header class="top-navbar">
+      <a href="/" class="brand-wrapper interactive" aria-label="TEDxFrontier 2026 Home">
+        <span class="ted-logo">TED<span class="x">x</span></span>
+        <span class="event-name">Frontier '26</span>
+      </a>
+
+      <nav aria-label="Main Navigation">
+        <ul class="nav-links">
+          <li><a href="#theme" class="nav-link interactive"><span class="index">01</span>Theme</a></li>
+          <li><a href="#speakers" class="nav-link interactive"><span class="index">02</span>Speakers</a></li>
+          <li><a href="#schedule" class="nav-link interactive"><span class="index">03</span>Schedule</a></li>
+          <li><a href="#about" class="nav-link interactive"><span class="index">04</span>About</a></li>
+        </ul>
+      </nav>
+
+      <div class="nav-actions">
+        <!-- Audio Ambient Drone Toggle -->
+        <button id="btn-sound-toggle" class="btn-sound interactive" aria-label="Toggle ambient soundtrack" title="Toggle Atmospheric Audio">
+          <span class="sound-bars" aria-hidden="true">
+            <span class="sound-bar"></span>
+            <span class="sound-bar"></span>
+            <span class="sound-bar"></span>
+            <span class="sound-bar"></span>
+          </span>
+          <span id="sound-label">Sound [OFF]</span>
+        </button>
+
+        <!-- CTA Button -->
+        <a href="#passes" class="btn-primary interactive">
+          <span>Get Passes</span>
+          <span aria-hidden="true">→</span>
+        </a>
+      </div>
+    </header>
+
+    <!-- Center Hero Editorial Typography -->
+    <main class="hero-content">
+      <div class="hero-tagline">
+        <span class="live-indicator" aria-hidden="true"></span>
+        <span>October 24, 2026 // Amsterdam • Live & Virtual</span>
+      </div>
+
+      <h1 class="hero-headline">
+        Ideas <span class="outline">Worth</span><br />
+        Spreading.
+      </h1>
+
+      <p class="hero-description">
+        Step into the synthetic threshold. Twelve visionary thinkers unravel the future of autonomous intelligence, self-healing bioceramics, and digital art in an unforgettable immersive keynote experience.
+      </p>
+
+      <div class="hero-cta-group">
+        <a href="#tickets" class="btn-primary interactive" id="hero-get-tickets">
+          <span>Reserve In-Person Pass — €120</span>
+          <span aria-hidden="true">→</span>
+        </a>
+        <button id="btn-watch-trailer" class="btn-secondary interactive">
+          <span>Explore 12 Talks</span>
+        </button>
+      </div>
+    </main>
+
+    <!-- Bottom Dock: Active Speaker HUD + Dynamic Character Switcher -->
+    <footer class="bottom-dock">
+      <!-- Active Speaker Info Card -->
+      <section class="speaker-hud interactive" id="speaker-card" aria-label="Featured Speaker Spotlight">
+        <div class="hud-meta">
+          <span id="hud-session">Session 01 // Cognitive Horizons</span>
+          <span id="hud-time">10:30 AM CET</span>
+        </div>
+        <h2 class="hud-name" id="hud-name">Dr. Maya Lin</h2>
+        <p class="hud-talk" id="hud-talk">"When Neural Networks Learn to Dream"</p>
+        <div class="hud-footer">
+          <span id="hud-role">Neuro-AI Researcher & Ethicist</span>
+          <span id="hud-shader-status">● Shader: Parallax + FBM</span>
+        </div>
+      </section>
+
+      <!-- Dynamic Character Switcher Toolbar -->
+      <div class="character-switcher interactive" role="tablist" aria-label="Character and Speaker Selector">
+        <span class="switcher-label">Select Character:</span>
+        <div id="speaker-btn-container" style="display: contents;">
+          <!-- Dynamically populated from config/speakers.js -->
+        </div>
+        <button id="btn-open-upload" class="character-btn btn-upload" title="Upload your own custom character photo">
+          <span aria-hidden="true">+</span>
+          <span>Upload Custom</span>
+        </button>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- Floating Shader Controls Toggle -->
+  <button id="btn-tweak" class="btn-tweak-toggle interactive" aria-expanded="false" aria-controls="tweak-drawer">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3"></circle>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+    </svg>
+    <span>Tweak Shader</span>
+  </button>
+
+  <!-- Shader Parameters Drawer -->
+  <aside id="tweak-drawer" class="tweak-drawer interactive" aria-label="Shader Live Parameters">
+    <div class="tweak-header">
+      <span>Shader Parameters</span>
+      <span style="font-size: 0.65rem; color: var(--color-text-muted);">WebGL2 Engine</span>
+    </div>
+
+    <div class="tweak-row">
+      <div class="tweak-label">
+        <span>Hover Shift Intensity</span>
+        <span id="val-hover-shift">0.14</span>
+      </div>
+      <input type="range" id="slider-hover-shift" class="tweak-slider" min="0" max="0.35" step="0.01" value="0.14" />
+    </div>
+
+    <div class="tweak-row">
+      <div class="tweak-label">
+        <span>3D Perspective Tilt</span>
+        <span id="val-tilt">0.22</span>
+      </div>
+      <input type="range" id="slider-tilt" class="tweak-slider" min="0" max="0.50" step="0.02" value="0.22" />
+    </div>
+
+    <div class="tweak-row">
+      <div class="tweak-label">
+        <span>Flame Cursor Tracking</span>
+        <span id="val-flame-follow">0.22</span>
+      </div>
+      <input type="range" id="slider-flame-follow" class="tweak-slider" min="0" max="0.50" step="0.02" value="0.22" />
+    </div>
+
+    <div class="tweak-row">
+      <div class="tweak-label">
+        <span>FBM Flame Intensity</span>
+        <span id="val-intensity">1.00</span>
+      </div>
+      <input type="range" id="slider-intensity" class="tweak-slider" min="0" max="2.5" step="0.05" value="1.0" />
+    </div>
+
+    <div class="tweak-row">
+      <div class="tweak-label">
+        <span>Portrait Zoom / Scale</span>
+        <span id="val-scale">1.25</span>
+      </div>
+      <input type="range" id="slider-scale" class="tweak-slider" min="0.8" max="2.0" step="0.02" value="1.25" />
+    </div>
+
+    <div class="tweak-row">
+      <div class="tweak-label">
+        <span>Vertical Shift (Y)</span>
+        <span id="val-offsetY">0.00</span>
+      </div>
+      <input type="range" id="slider-offsetY" class="tweak-slider" min="-0.2" max="0.2" step="0.01" value="0.0" />
+    </div>
+
+    <div class="tweak-row">
+      <div class="tweak-label">
+        <span>Film Grain / Dither</span>
+        <span id="val-dither">1.00</span>
+      </div>
+      <input type="range" id="slider-dither" class="tweak-slider" min="0" max="1.5" step="0.05" value="1.0" />
+    </div>
+
+    <button id="btn-reset-tweaks" class="btn-secondary" style="width: 100%; justify-content: center; margin-top: 0.5rem; font-size: 0.72rem;">
+      Reset to Preset
+    </button>
+  </aside>
+
+  <!-- Custom Character Upload Modal Dialog -->
+  <div id="upload-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-title">Swap Hero Character</h3>
+        <button id="btn-close-modal" class="btn-close" aria-label="Close dialog">&times;</button>
+      </div>
+
+      <div id="drop-zone" class="upload-zone">
+        <div class="upload-icon" aria-hidden="true">⇪</div>
+        <strong>Drag & Drop Any Portrait Photo</strong>
+        <p class="upload-hint">Supports WebP, PNG, JPG. Auto-depth generation is included if no depth map is provided.</p>
+        <button class="btn-secondary" id="btn-browse-file" style="margin-top: 1rem;">
+          Browse File
+        </button>
+        <input type="file" id="file-input" class="file-input" accept="image/*" />
+      </div>
+
+      <div style="font-size: 0.75rem; color: var(--color-text-dim); line-height: 1.6;">
+        💡 <em>Tip: Photos with high contrast, darker backgrounds, and front/side lighting create the most dramatic flame and parallax effect!</em>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main JavaScript Module Entry -->
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
