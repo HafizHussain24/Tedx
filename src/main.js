@@ -95,13 +95,17 @@ class TedxApp {
     await this.shader.setCharacter({
       portraitUrl: spk.portraitUrl,
       depthUrl: spk.depthUrl,
-      scale: spk.scale || 1.25,
+      scale: spk.scale || 1.05,
       offsetY: typeof spk.offsetY === 'number' ? spk.offsetY : 0.0,
       fbmIntensity: typeof spk.fbmIntensity === 'number' ? spk.fbmIntensity : 1.0,
-      hoverShift: spk.hoverShift ?? 0.14,
-      tiltAmount: spk.tiltAmount ?? 0.22,
+      hoverShift: spk.hoverShift ?? 0.12,
+      tiltAmount: spk.tiltAmount ?? 0.20,
       parallaxStrength: spk.parallaxStrength ?? 0.16,
       fbmMouseFollow: spk.fbmMouseFollow ?? 0.22,
+      backglowIntensity: spk.backglowIntensity ?? 1.15,
+      backglowRadius: spk.backglowRadius ?? 1.0,
+      glowCenterX: spk.glowCenterX ?? 0.50,
+      glowCenterY: spk.glowCenterY ?? 0.65,
     });
   }
 
@@ -113,13 +117,14 @@ class TedxApp {
     const sHoverShift = document.getElementById('slider-hover-shift');
     const sTilt = document.getElementById('slider-tilt');
     const sFlameFollow = document.getElementById('slider-flame-follow');
+    const sBackglow = document.getElementById('slider-backglow');
 
     if (sIntensity) {
       sIntensity.value = config.fbmIntensity ?? 1.0;
       document.getElementById('val-intensity').textContent = parseFloat(sIntensity.value).toFixed(2);
     }
     if (sScale) {
-      sScale.value = config.scale ?? 1.25;
+      sScale.value = config.scale ?? 1.05;
       document.getElementById('val-scale').textContent = parseFloat(sScale.value).toFixed(2);
     }
     if (sOffsetY) {
@@ -127,20 +132,24 @@ class TedxApp {
       document.getElementById('val-offsetY').textContent = parseFloat(sOffsetY.value).toFixed(2);
     }
     if (sDither) {
-      sDither.value = config.ditherAmount ?? 1.0;
+      sDither.value = config.ditherAmount ?? 0.85;
       document.getElementById('val-dither').textContent = parseFloat(sDither.value).toFixed(2);
     }
     if (sHoverShift) {
-      sHoverShift.value = config.hoverShift ?? 0.14;
+      sHoverShift.value = config.hoverShift ?? 0.12;
       document.getElementById('val-hover-shift').textContent = parseFloat(sHoverShift.value).toFixed(2);
     }
     if (sTilt) {
-      sTilt.value = config.tiltAmount ?? 0.22;
+      sTilt.value = config.tiltAmount ?? 0.20;
       document.getElementById('val-tilt').textContent = parseFloat(sTilt.value).toFixed(2);
     }
     if (sFlameFollow) {
       sFlameFollow.value = config.fbmMouseFollow ?? 0.22;
       document.getElementById('val-flame-follow').textContent = parseFloat(sFlameFollow.value).toFixed(2);
+    }
+    if (sBackglow) {
+      sBackglow.value = config.backglowIntensity ?? 1.15;
+      document.getElementById('val-backglow').textContent = parseFloat(sBackglow.value).toFixed(2);
     }
   }
 
@@ -153,10 +162,10 @@ class TedxApp {
       const isPlaying = this.audio.toggle();
       if (isPlaying) {
         btn.classList.add('is-playing');
-        label.textContent = 'Sound [ON]';
+        label.textContent = 'Audio [ON]';
       } else {
         btn.classList.remove('is-playing');
-        label.textContent = 'Sound [OFF]';
+        label.textContent = 'Audio [OFF]';
       }
     });
   }
@@ -222,18 +231,24 @@ class TedxApp {
       this.shader.config.ditherAmount = v;
     });
 
+    bindSlider('slider-backglow', 'val-backglow', (v) => {
+      this.shader.config.backglowIntensity = v;
+    });
+
     if (btnReset) {
       btnReset.addEventListener('click', () => {
         const spk = SPEAKERS.find((s) => s.id === this.currentSpeakerId) || SPEAKERS[0];
         this.updateTweakUI(spk);
         this.shader.config.fbmIntensity = spk.fbmIntensity || 1.0;
-        this.shader.config.scale = spk.scale || 1.25;
+        this.shader.config.scale = spk.scale || 1.05;
         this.shader.config.offsetY = spk.offsetY || 0.0;
-        this.shader.config.ditherAmount = 1.0;
-        this.shader.config.hoverShift = spk.hoverShift ?? 0.14;
-        this.shader.config.tiltAmount = spk.tiltAmount ?? 0.22;
+        this.shader.config.ditherAmount = 0.85;
+        this.shader.config.hoverShift = spk.hoverShift ?? 0.12;
+        this.shader.config.tiltAmount = spk.tiltAmount ?? 0.20;
         this.shader.config.fbmMouseFollow = spk.fbmMouseFollow ?? 0.22;
         this.shader.config.parallaxStrength = spk.parallaxStrength ?? 0.16;
+        this.shader.config.backglowIntensity = spk.backglowIntensity ?? 1.15;
+        this.shader.config.backglowRadius = spk.backglowRadius ?? 1.0;
       });
     }
   }

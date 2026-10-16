@@ -17,52 +17,15 @@ void main() {
   gl_Position = vec4(p, 0.0, 1.0);
 }`;
 
-// 3D Perspective Rotation Quad Vertex Shader (Pass 1)
+// Unified Pass 1 Fullscreen Quad Vertex Shader
 const VS_IMAGE = `#version 300 es
 precision highp float;
 layout(location=0) in vec2 p;
 layout(location=1) in vec2 t;
-
-uniform vec2 uMousePos;
-uniform float uTiltAmount;
-uniform vec2 uShift;
-
 out vec2 vUV;
-
 void main() {
   vUV = t;
-
-  // 3D rotation angles around center based on mouse position
-  float angleX = (uMousePos.y - 0.5) * uTiltAmount;
-  float angleY = (0.5 - uMousePos.x) * uTiltAmount;
-
-  mat4 rotX = mat4(
-    1.0, 0.0, 0.0, 0.0,
-    0.0, cos(angleX), -sin(angleX), 0.0,
-    0.0, sin(angleX),  cos(angleX), 0.0,
-    0.0, 0.0, 0.0, 1.0
-  );
-
-  mat4 rotY = mat4(
-     cos(angleY), 0.0, sin(angleY), 0.0,
-     0.0,         1.0, 0.0,         0.0,
-    -sin(angleY), 0.0, cos(angleY), 0.0,
-     0.0,         0.0, 0.0,         1.0
-  );
-
-  vec4 pos = vec4(p, 0.0, 1.0);
-  pos = rotX * rotY * pos;
-
-  // 2D hover shift translation
-  pos.xy += uShift;
-
-  // Perspective projection divide (focal distance ≈ 2.5)
-  float focal = 2.5;
-  float zDist = max(0.1, focal - pos.z);
-  pos.xy = (pos.xy * focal) / zDist;
-  pos.z = 0.0;
-
-  gl_Position = pos;
+  gl_Position = vec4(p, 0.0, 1.0);
 }`;
 
 const FS_IMAGE_DEPTH = `#version 300 es
@@ -80,7 +43,11 @@ uniform float uOpacity;
 uniform float uScale;
 uniform vec2 uOffset;
 uniform float uHover;
-uniform float uParallaxStrength;
+uniform float uHoverShift;
+uniform float uTiltAmount;
+uniform float uBackglowIntensity;
+uniform float uBackglowRadius;
+uniform vec2 uGlowCenter;
 
 vec2 getCoverUV(vec2 uv, vec2 texSize, vec2 canvasSize, float scale, vec2 offset) {
   float textureAspect = texSize.x / texSize.y;
@@ -98,68 +65,120 @@ vec2 getCoverUV(vec2 uv, vec2 texSize, vec2 canvasSize, float scale, vec2 offset
   return c;
 }
 
-float getDepth(vec2 uv) {
+float getSampleDepth(vec2 uv) {
   vec2 texSize = vec2(textureSize(uDepthMap, 0));
-  vec2 coverUV = getCoverUV(uv, texSize, uResolution, uScale, uOffset);
-  if (coverUV.x < 0.0 || coverUV.x > 1.0 || coverUV.y < 0.0 || coverUV.y > 1.0) {
-    return 1.0;
+  vec2 cUV = getCoverUV(uv, texSize, uResolution, uScale, uOffset);
+  if (cUV.x < 0.0 || cUV.x > 1.0 || cUV.y < 0.0 || cUV.y > 1.0) {
+    return 0.0;
   }
-  vec4 depthColor = texture(uDepthMap, coverUV);
-  float depth = dot(depthColor.rgb, vec3(0.299, 0.587, 0.114));
-  return 1.0 - depth;
+  vec4 dCol = texture(uDepthMap, cUV);
+  return dot(dCol.rgb, vec3(0.299, 0.587, 0.114));
 }
 
-vec4 samplePortrait(vec2 uv) {
-  vec2 texSize = vec2(textureSize(uSourceImage, 0));
-  vec2 coverUV = getCoverUV(uv, texSize, uResolution, uScale, uOffset);
-  if (coverUV.x < 0.0 || coverUV.x > 1.0 || coverUV.y < 0.0 || coverUV.y > 1.0) {
-    return vec4(0.0);
+float sampleSilhouette(vec2 uv) {
+  vec2 texSize = vec2(textureSize(uDepthMap, 0));
+  vec2 cUV = getCoverUV(uv, texSize, uResolution, uScale, uOffset);
+  if (cUV.x < 0.0 || cUV.x > 1.0 || cUV.y < 0.0 || cUV.y > 1.0) {
+    return 0.0;
   }
-  return textureLod(uSourceImage, coverUV, 0.0);
+  vec4 dCol = texture(uDepthMap, cUV);
+  float d = dot(dCol.rgb, vec3(0.299, 0.587, 0.114));
+  float bMask = smoothstep(0.0, 0.03, min(min(cUV.x, 1.0 - cUV.x), min(cUV.y, 1.0 - cUV.y)));
+  return smoothstep(0.07, 0.18, d) * bMask;
 }
 
 void main() {
   vec2 uv = vUV;
 
-  // Responsive Parallax Occlusion Raymarching
-  vec2 mouseOffset = (uMousePos - 0.5);
-  vec2 parallaxDir = mouseOffset * uParallaxStrength * (0.8 + uHover * 1.2);
-  float layerDepth = 1.0 / 24.0 * 0.5;
-  float currentLayerDepth = 0.0;
+  // 1. Unified 3D Depth Parallax & Hover Shift
+  vec2 mouseDelta = (uMousePos - 0.5);
+  float aspect = uResolution.x / uResolution.y;
 
-  vec2 currentUv = uv;
-  vec2 prevUv = currentUv;
-  float currentDepth = getDepth(currentUv);
-  float prevDepth = currentDepth;
+  // Both translation and depth tilt move in the exact same direction
+  float shiftAmt = uHoverShift * 0.28;
+  float tiltAmt = uTiltAmount * 0.22;
 
-  for (int i = 0; i < 24; i++) {
-    if (currentDepth < currentLayerDepth) break;
-    currentLayerDepth += layerDepth;
-    prevUv = currentUv;
-    prevDepth = currentDepth;
-    currentUv -= parallaxDir * layerDepth;
-    currentDepth = getDepth(currentUv);
+  // Relaxed two-step depth sampling for artifact-free perspective
+  float d0 = getSampleDepth(uv);
+  vec2 probeUV = uv - mouseDelta * (shiftAmt + tiltAmt * (d0 - 0.5));
+  float d1 = getSampleDepth(probeUV);
+  float d = mix(d0, d1, 0.6);
+
+  // Unified offset coordinate for this pixel
+  vec2 offsetUv = uv - mouseDelta * (shiftAmt + tiltAmt * (d - 0.5));
+
+  // 2. Sample portrait at the unified offset
+  vec2 texSize = vec2(textureSize(uSourceImage, 0));
+  vec2 coverUV = getCoverUV(offsetUv, texSize, uResolution, uScale, uOffset);
+
+  vec4 color = vec4(0.0);
+  if (coverUV.x >= 0.0 && coverUV.x <= 1.0 && coverUV.y >= 0.0 && coverUV.y <= 1.0) {
+    color = textureLod(uSourceImage, coverUV, 0.0);
   }
 
-  float beforeDepth = prevDepth - (currentLayerDepth - layerDepth);
-  float afterDepth  = currentDepth - currentLayerDepth;
-  float weight = beforeDepth / (beforeDepth - afterDepth + 1e-5);
-  weight = clamp(weight, 0.0, 1.0);
-  vec2 offsetUv = mix(prevUv, currentUv, weight);
+  // 3. Silhouette mask evaluated at the exact same unified offset
+  float sil = sampleSilhouette(offsetUv);
+  if (color.a < 1.0) {
+    sil = max(sil, color.a);
+  }
 
-  vec4 color = samplePortrait(offsetUv);
+  // 4. White spotlight spill aura dilated around the unified silhouette
+  float ign = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+  float jitter = ign * 6.2831853;
 
-  // Exposure adjustments
+  float auraRadius = 0.021 * max(0.4, uBackglowRadius);
+  float auraAccum = 0.0;
+  float auraWeight = 0.0;
+
+  for (int i = 1; i <= 24; i++) {
+    float fi = float(i);
+    float r = sqrt(fi / 24.0) * auraRadius;
+    float theta = fi * 2.39996323 + jitter;
+    vec2 dir = vec2(cos(theta) / aspect, sin(theta));
+    float s = sampleSilhouette(offsetUv + dir * r);
+    float w = exp(-r / (auraRadius * 0.42));
+    auraAccum += s * w;
+    auraWeight += w;
+  }
+  float dilatedSil = auraAccum / auraWeight;
+
+  // Outer aura: decays smoothly to pure black outside the character
+  float edgeDist = clamp(dilatedSil * 2.05, 0.0, 1.0);
+  float outerAura = pow(edgeDist, 1.55);
+
+  // Spotlight concentration: brightest behind upper torso & head
+  vec2 glowCenter = uGlowCenter + uOffset;
+  glowCenter += mouseDelta * 0.025;
+  vec2 spotDelta = (uv - glowCenter) * vec2(aspect, 1.0);
+  spotDelta.y *= 0.85;
+  float spotDist = length(spotDelta);
+  float spotFactor = exp(-spotDist * 2.2);
+
+  // Final white aura with spotlight weighting
+  float finalAura = outerAura * (0.35 + 0.65 * spotFactor) * uBackglowIntensity * 1.35;
+  finalAura = clamp(finalAura, 0.0, 1.0);
+  vec3 auraColor = vec3(0.98, 0.99, 1.0) * finalAura;
+
+  // 5. White rim light on the inner edge of the silhouette
+  float innerRim = pow(clamp((1.0 - dilatedSil) * 2.05, 0.0, 1.0), 1.6) * sil;
+  float finalRim = innerRim * (0.35 + 0.65 * spotFactor) * uBackglowIntensity * 0.65;
+  vec3 rimColor = vec3(0.98, 0.99, 1.0) * finalRim;
+
+  // 6. Character color with exposure and inner rim light
+  vec3 charColor = color.rgb;
   if (uExposure != 0.0) {
-    vec3 ec = clamp(color.rgb + uExposure, 0.0, 1.0);
-    color.rgb = mix(color.rgb, ec, color.a);
+    vec3 ec = clamp(charColor + uExposure, 0.0, 1.0);
+    charColor = mix(charColor, ec, color.a);
   }
-  color.rgb = clamp(color.rgb, 0.0, 1.0);
-  color.rgb *= color.a;
+  charColor = clamp(charColor, 0.0, 1.0);
+  charColor += rimColor;
 
-  // Composite with opacity onto black background
-  vec4 bg = vec4(0.0, 0.0, 0.0, 1.0);
-  fragColor = mix(bg, color + bg * (1.0 - color.a), uOpacity);
+  // 7. Composite: Pure Black (#000000) Background + Unified Outer Aura + Character
+  vec3 background = auraColor;
+  vec3 composite = mix(background, charColor, sil);
+
+  float totalAlpha = max(sil, finalAura);
+  fragColor = vec4(composite * uOpacity, totalAlpha * uOpacity);
 }`;
 
 const FS_FBM = `#version 300 es
@@ -301,14 +320,16 @@ vec3 dither(vec3 color, vec2 st) {
 
 void main() {
   vec4 color = texture(uTexture, vUV);
-  if (color.a == 0.0) {
-    fragColor = vec4(0.0);
+  // Pure black void: leave background perfectly solid black (#000000)
+  if (color.a < 0.005 || dot(color.rgb, vec3(1.0)) < 0.005) {
+    fragColor = vec4(0.0, 0.0, 0.0, 1.0);
     return;
   }
   vec3 dithered = dither(color.rgb, vUV);
   color.rgb = mix(color.rgb, dithered, uDitherAmount);
-  fragColor = color;
-}`;
+  fragColor = vec4(color.rgb, 1.0);
+}
+`;
 
 export class HeroShader {
   constructor(canvasElement) {
@@ -340,9 +361,9 @@ export class HeroShader {
       gl.ARRAY_BUFFER,
       new Float32Array([
         -1, -1, 0, 0,
-         1, -1, 1, 0,
-        -1,  1, 0, 1,
-         1,  1, 1, 1,
+        1, -1, 1, 0,
+        -1, 1, 0, 1,
+        1, 1, 1, 1,
       ]),
       gl.STATIC_DRAW
     );
@@ -383,15 +404,19 @@ export class HeroShader {
 
     // Configurable character settings
     this.config = {
-      scale: 1.25,
+      scale: 1.05,
       offsetY: 0.0,
       fbmIntensity: 1.0,
-      ditherAmount: 1.0,
+      ditherAmount: 0.85,
       mouseMomentum: 0.92,
-      hoverShift: 0.14,         // 2D horizontal/vertical displacement on hover
-      tiltAmount: 0.22,         // 3D perspective rotation tilt
+      hoverShift: 0.12,         // 2D horizontal/vertical displacement on hover
+      tiltAmount: 0.20,         // 3D perspective rotation tilt
       parallaxStrength: 0.16,   // Depth map parallax raymarching
-      fbmMouseFollow: 0.22,     // Flame cursor tracking
+      fbmMouseFollow: 0.08,     // Flame cursor tracking
+      backglowIntensity: 1.15,  // White light backglow behind person
+      backglowRadius: 1.0,      // White light halo spread
+      glowCenterX: 0.50,        // Horizontal position of white light
+      glowCenterY: 0.65,        // Vertical position of white light
     };
 
     this.initListeners();
@@ -467,7 +492,7 @@ export class HeroShader {
   /**
    * Primary method to dynamically swap character/speaker image & depth map!
    */
-  async setCharacter({ portraitUrl, depthUrl, imageElement, depthElement, scale, offsetY, fbmIntensity, hoverShift, tiltAmount, parallaxStrength, fbmMouseFollow }) {
+  async setCharacter({ portraitUrl, depthUrl, imageElement, depthElement, scale, offsetY, fbmIntensity, hoverShift, tiltAmount, parallaxStrength, fbmMouseFollow, backglowIntensity, backglowRadius, glowCenterX, glowCenterY }) {
     try {
       let pImg = imageElement;
       let dImg = depthElement;
@@ -504,6 +529,10 @@ export class HeroShader {
       if (typeof tiltAmount === 'number') this.config.tiltAmount = tiltAmount;
       if (typeof parallaxStrength === 'number') this.config.parallaxStrength = parallaxStrength;
       if (typeof fbmMouseFollow === 'number') this.config.fbmMouseFollow = fbmMouseFollow;
+      if (typeof backglowIntensity === 'number') this.config.backglowIntensity = backglowIntensity;
+      if (typeof backglowRadius === 'number') this.config.backglowRadius = backglowRadius;
+      if (typeof glowCenterX === 'number') this.config.glowCenterX = glowCenterX;
+      if (typeof glowCenterY === 'number') this.config.glowCenterY = glowCenterY;
 
       // Trigger fresh intro appear animation
       this.t0 = performance.now();
@@ -622,10 +651,9 @@ export class HeroShader {
     // Smooth hover state transition
     this.hoverAmount += (this.targetHover - this.hoverAmount) * 0.06;
 
-    // Compute 2D shift translation and 3D tilt
+    // Compute unified shift and tilt parameters
     const shiftFactor = (0.2 + this.hoverAmount * 0.8);
-    const shiftX = (0.5 - this.depthMX) * this.config.hoverShift * shiftFactor;
-    const shiftY = (0.5 - this.depthMY) * this.config.hoverShift * 0.5 * shiftFactor;
+    const hoverShift = this.config.hoverShift * shiftFactor;
     const tilt = this.config.tiltAmount * shiftFactor;
 
     // Appear state transitions (exact from scene.json)
@@ -664,14 +692,16 @@ export class HeroShader {
 
     gl.uniform2f(this.u(this.progImage, 'uResolution'), this.fboA.w, this.fboA.h);
     gl.uniform2f(this.u(this.progImage, 'uMousePos'), this.depthMX, this.depthMY);
-    gl.uniform2f(this.u(this.progImage, 'uShift'), shiftX, shiftY);
+    gl.uniform1f(this.u(this.progImage, 'uHoverShift'), hoverShift);
     gl.uniform1f(this.u(this.progImage, 'uTiltAmount'), tilt);
     gl.uniform1f(this.u(this.progImage, 'uHover'), this.hoverAmount);
-    gl.uniform1f(this.u(this.progImage, 'uParallaxStrength'), this.config.parallaxStrength);
     gl.uniform1f(this.u(this.progImage, 'uExposure'), exposure);
     gl.uniform1f(this.u(this.progImage, 'uOpacity'), opacity);
     gl.uniform1f(this.u(this.progImage, 'uScale'), this.config.scale);
     gl.uniform2f(this.u(this.progImage, 'uOffset'), 0.0, this.config.offsetY);
+    gl.uniform1f(this.u(this.progImage, 'uBackglowIntensity'), this.config.backglowIntensity);
+    gl.uniform1f(this.u(this.progImage, 'uBackglowRadius'), this.config.backglowRadius);
+    gl.uniform2f(this.u(this.progImage, 'uGlowCenter'), this.config.glowCenterX, this.config.glowCenterY);
     this.drawQuad();
 
     // ─────────────────────────────────────────────────────────────────
