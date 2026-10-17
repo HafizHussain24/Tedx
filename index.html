@@ -28,19 +28,29 @@
 
 <body>
 
-  <!-- Anomaly Starting Animation: The Void & Space Tear Overlay -->
-  <aside id="singularity-loader" class="singularity-loader" aria-label="Loading TEDxCUSAT Anomaly Experience">
-    <canvas id="singularity-canvas" class="singularity-canvas"></canvas>
+  <!-- ANOMALY Starting / Intro Animation Overlay -->
+  <aside id="intro-overlay" class="intro-overlay" aria-label="TEDxCUSAT ANOMALY Intro">
+    <canvas id="intro-canvas" class="intro-canvas"></canvas>
+    <div id="intro-controls" class="intro-controls">
+      <button id="intro-audio-btn" class="intro-audio-btn" aria-label="Toggle Sound" title="Toggle Intro Audio">
+        <span class="intro-sound-icon" aria-hidden="true">🔊</span>
+        <span id="intro-sound-text">SOUND: ON</span>
+      </button>
+      <button id="intro-skip-btn" class="intro-skip-btn" aria-label="Skip Introduction">Skip [ESC]</button>
+    </div>
   </aside>
 
-  <!-- Fullscreen WebGL2 Shader Canvas Container -->
-  <div class="hero-canvas-container" id="canvas-container" aria-hidden="true">
-    <canvas id="hero-canvas"></canvas>
-    <div class="hero-vignette"></div>
-  </div>
+  <!-- Website Root (sits behind intro animation, revealed through the tear) -->
+  <div id="website-root" class="website-root">
 
-  <!-- Primary Foreground UI Overlay -->
-  <div class="app-container">
+    <!-- Fullscreen WebGL2 Shader Canvas Container -->
+    <div class="hero-canvas-container" id="canvas-container" aria-hidden="true">
+      <canvas id="hero-canvas"></canvas>
+      <div class="hero-vignette"></div>
+    </div>
+
+    <!-- Primary Foreground UI Overlay -->
+    <div class="app-container">
 
     <!-- Top Navigation -->
     <header class="top-navbar">
@@ -144,6 +154,8 @@
     </footer>
 
   </div>
+
+  </div> <!-- End #website-root -->
 
   <!-- Floating Shader Controls Toggle -->
   <button id="btn-tweak" class="btn-tweak-toggle interactive" aria-expanded="false" aria-controls="tweak-drawer">

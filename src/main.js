@@ -5,7 +5,7 @@
 import { HeroShader } from './shader/HeroShader.js';
 import { SPEAKERS, DEFAULT_SPEAKER_ID } from './config/speakers.js';
 import { AmbientAudio } from './components/audio.js';
-import { SingularRiftLoader } from './components/SingularRiftLoader.js';
+import { AnomalyIntro } from './components/AnomalyIntro.js';
 
 class TedxApp {
   constructor() {
@@ -14,10 +14,9 @@ class TedxApp {
     this.audio = new AmbientAudio();
     this.currentSpeakerId = DEFAULT_SPEAKER_ID;
 
-    // Starting Animation: The Singular Rift (Theme: ANOMALY)
-    this.loader = new SingularRiftLoader({
-      minDuration: 1800,
-      onRevealed: () => {
+    // Master Startup / Intro Animation (Theme: ANOMALY)
+    this.intro = new AnomalyIntro({
+      onComplete: () => {
         const soundBtn = document.getElementById('btn-sound-toggle');
         if (soundBtn && !this.audio.isPlaying) {
           soundBtn.classList.add('pulse-invite');
@@ -25,6 +24,9 @@ class TedxApp {
         }
       },
     });
+
+    // Alias for compatibility
+    this.loader = this.intro;
 
     window.app = this;
 
@@ -48,15 +50,9 @@ class TedxApp {
       this.setupTweakDrawer();
       this.setupUploadModal();
 
-      // 5. Notify loader that initial textures and WebGL pipeline are fully ready
-      this.loader.setAssetsReady();
-
       console.log('TEDx Hero Shader Engine initialized successfully.');
     } catch (err) {
       console.error('Initialization error in TedxApp:', err);
-      if (this.loader) {
-        this.loader.setAssetsReady();
-      }
     }
   }
 
