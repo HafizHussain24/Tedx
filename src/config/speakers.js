@@ -70,7 +70,7 @@ export const DEFAULT_SPEAKER_ID = 'speaker-ravi';
 export const EVENT_INFO = {
   name: 'TEDxCUSAT',
   year: '2026',
-  theme: 'RE:IMAGINE',
+  theme: 'ANOMALY',
   subtitle: 'Ideas Worth Spreading',
   date: 'OCTOBER 24, 2026',
   location: 'Cochin University of Science and Technology • Kochi',
